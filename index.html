@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CST3145 COURSEWORK1</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    <link rel="stylesheet" href="css/bootstrap.css">
+    <style>
+        * {
+            text-transform: capitalize;
+        }
+    </style>
+</head>
+
+<body>
+    <main id="app">
+        <div class="container mb-8">
+            <h1 class="text-center">MNH AfterClasses</h1>
+
+            <div class="d-flex">
+                <button class="btn btn-secondary fs-3 p-3 ms-auto" v-on:click="showCheckOut"
+                    :disabled="cartSize === 0">{{cartSize}} <i class="bi bi-bag-check-fill"></i></button>
+            </div>
+
+            <div class="container" v-if="showProduct">
+                <div class="d-flex align-items-end gap-3 flex-wrap">
+                    <div>
+                        <input type="text" class="form-control" v-model="searchTerm"
+                            placeholder="search for a lesson...">
+                    </div>
+
+                    <div>
+                        <label for="sortAttribute">Sort By:</label>
+                        <select v-model="sortAttribute" class="form-select">
+                            <option value="title">Title</option>
+                            <option value="location">Location</option>
+                            <option value="price">Price</option>
+                            <option value="spaces">Spaces</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="sortOrder">Sort Order:</label>
+                        <select v-model="sortOrder" class="form-select">
+                            <option value="asc">Ascending</option>
+                            <option value="desc">Descending</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-sm-6" v-for="product in sortClasses" :key="product.id">
+                        <div class="card mb-3 mt-3 rounded border border-success-subtle">
+                            <div class="card-header d-flex">
+                                <div>
+                                    <img class="img-fluid" style="width: 150px; height: 150px;" :src="product.image"
+                                        alt="">
+                                </div>
+                                <i :class="product.icon" class="fs-1 ms-auto"></i>
+                            </div>
+                            <div class="card-body">
+                                <p>Title: {{product.title}}</p>
+                                <p>Location: {{product.location}}</p>
+                                <p>Spaces: {{product.spaces}}</p>
+                                <p>Price: {{product.price}} AED</p>
+                            </div>
+                            <div class="card-footer">
+                                <button class="btn btn-secondary rounded" v-on:click='addToCart(product)'
+                                    :disabled="product.spaces === 0">Add to cart</button>
+                                <button class="btn btn-danger rounded"
+                                    v-on:click='removeProduct(product)'>Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="container mt-4" v-else>
+                <div class="row g-3">
+                    <div class="col-sm-8 border rounded-3">
+                        <div v-for="item in cart" class="border-bottom" :key="item.lesson.id">
+                            <div class="col-sm-12 mb-4 p-3">
+                                <div class="row">
+                                    <div class="col-sm-4">
+                                        <img :src="item.lesson.image" style="width: 200px;"
+                                            class="col-sm-8 border rounded-3">
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <p>Title: {{item.lesson.title}}</p>
+                                        <p>Quantity: {{item.amount}}</p>
+                                        <button class="btn btn-danger rounded"
+                                            v-on:click='removeProduct(item.lesson)'>Remove</button>
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <p>Price: {{item.lesson.price}}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="container">
+                            <div class="row justify-content-center">
+                                <div class="col-md-12">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5 class="card-title">User Information</h5>
+                                            <form @submit.prevent="checkout">
+                                                <div class="mb-3">
+                                                    <label for="username" class="form-label">Username</label>
+                                                    <input type="text" v-model="username" class="form-control"
+                                                        id="username" name="username" placeholder="Enter your username"
+                                                        required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="phone" class="form-label">Phone Number</label>
+                                                    <input type="tel" v-model="phonenumber" class="form-control"
+                                                        id="phone" name="phone" placeholder="Enter your phone number"
+                                                        required>
+                                                </div>
+                                                <button type="submit" class="btn btn-info"
+                                                    :disabled="!validateUserCredentials">Submit</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script>
+        // mount VUE instance
+        var app = new Vue({
+            el: '#app',
+            // data object
+            data: {
+                showProduct: true,
+                lessons: [],
+                cart: [],
+                searchTerm: '',
+                username: '',
+                phonenumber: '',
+                sortAttribute: 'title',
+                sortOrder: 'asc',
+            },
+            created() {
+                this.getLessons();
+            },
+            methods: {
+                async getLessons() {
+                    try {
+                        const response = await fetch("http://localhost:3000/collection/Products/");
+                        this.lessons = await response.json();
+                        console.log("Fetched lessons:", this.lessons);
+                    } catch (error) {
+                        console.error('Error fetching lessons:', error);
+                    }
+                },
+                addToCart(product) {
+                    if (product.spaces > 0) {
+                        product.spaces--;
+                        const cartItem = this.cart.find(item => item.lesson.id === product.id);
+                        if (cartItem) {
+                            cartItem.quantity++;
+                        } else {
+                            this.cart.push({ lesson: product, quantity: 1 });
+                        }
+                    }
+                },
+                removeProduct(product) {
+                    const index = this.cart.findIndex(item => item.lesson.id === product.id);
+                    if (index !== -1) {
+                        this.cart[index].quantity--;
+                        if (this.cart[index].quantity === 0) {
+                            this.cart.splice(index, 1);
+                        }
+                        product.spaces++;
+                    }
+                },
+                showCheckOut() {
+                    this.showProduct = !this.showProduct;
+                },
+
+                async checkout() {
+                    const order = {
+                        lessons: this.cart,
+                        username: this.username,
+                        phonenumber: this.phonenumber
+                    };
+                    try {
+                        const response = await fetch("http://localhost:3000/collection/orders/", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(order)
+                        });
+                        if (!response.ok) {
+                            throw new Error('Failed to create order');
+                        }
+                        // Clear the cart after successful order placement
+                        this.cart = [];
+                        alert('Order successful');
+                        
+                        // Update spaces for each product in the cart
+                        for (let item of order.lessons) {
+                            const productId = item.lesson._id;
+                            const quantity = item.quantity;
+                            console.log(`Updating product with ID ${productId} and quantity ${quantity}`);
+                            // Fetch the product from the database
+                            // const response = await fetch(`http://localhost:3000/collection/products/${productId}`);
+                            // const product = await response.json();
+                            // console.log('Fetched product:', product);
+                            alert('Fetched product:', product);
+                            alert("hello world")
+                            // Update spaces
+                            product.spaces -= quantity;
+                            console.log('Updated product:', product);
+                            // Save the updated product back to the database
+                            await fetch(`http://localhost:3000/collection/products/${productId}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(product.quantity),
+                            });
+                            console.log('Product updated successfully');
+                        }
+                    } catch (error) {
+                        console.error('Error during checkout:', error);
+                    }
+                }
+            },
+            computed: {
+                searchClasses() {
+                    const searchTerm = this.searchTerm.toLowerCase();
+                    return this.lessons.filter(lesson =>
+                        lesson.title.toLowerCase().includes(searchTerm) ||
+                        lesson.location.toLowerCase().includes(searchTerm)
+                    );
+                },
+                sortClasses() {
+                    return this.searchClasses.slice().sort((a, b) => {
+                        const valueA = a[this.sortAttribute];
+                        const valueB = b[this.sortAttribute];
+                        const comparison = typeof valueA === 'string' ? valueA.localeCompare(valueB) : valueA - valueB;
+                        return this.sortOrder === 'asc' ? comparison : -comparison;
+                    });
+                },
+                cartSize() {
+                    return this.cart.reduce((sum, item) => sum + item.quantity, 0);
+                },
+                validateUserCredentials() {
+                    return /^[a-zA-Z]+$/.test(this.username) && /^\d+$/.test(this.phonenumber);
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
